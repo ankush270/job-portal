@@ -40,7 +40,7 @@ export const login = async (req,res) => {
                 message: 'Something is missing.',
                 success:false });
         };
-        const user = await User.findOne({email});
+        let user = await User.findOne({email});
         if(!user){
             return res.status(400).json({
                 message: 'Invalid email.',
@@ -49,7 +49,7 @@ export const login = async (req,res) => {
         const isPasswordMatch = await bcrypt.compare(password,user.password);
         if(!isPasswordMatch){
             return res.status(400).json({
-                message: 'Invalid password.',
+                message: 'Invalid password or mail.',
                 success:false });
         }
         //check role is correct or note
@@ -59,9 +59,9 @@ export const login = async (req,res) => {
                 success: false });
         }
         const tokenData={
-            userId: user.id
+            userId: user._id
         }
-        const token = await jwt.sign(tokenData, process.env.JWT_SECRET, { expiresIn: '1d' });
+        const token = await jwt.sign(tokenData, process.env.SECRET_KEY, { expiresIn: '1d' });
        user ={
         _id:user._id,
         fullname: user.fullname,
@@ -70,8 +70,9 @@ export const login = async (req,res) => {
         role: user.role,
         profile:user.profile
        }
-        return res.status(200).cookie("token", token,{maxAge:1*24*60*60*1000,httpsOnly:true,samesite:'strict'}).json({
+        return res.status(200).cookie("token", token,{maxAge:1*24*60*60*1000,httpsOnly:true,sameSite:'strict'}).json({
         message: 'Login successful. welcome back ${user.fullname}',
+        user,
             success: true,
        }) 
     }catch(error){
@@ -94,27 +95,25 @@ export const updateProfile = async(req,res)=>{
     try{
         const file=req.file;
         const {fullname,phoneNumber,email,bio,skills}=req.body;
-        if( !fullname || !phoneNumber || !email || !bio || !skills){
-            return res.status(400).json({
-                message: 'All fields are required.',
-                success: false
-            });
-        }
+       
         //cloudinary
-        const skillsArray = skills.split(",");
+        let skillsArray 
+        if(skills){
+        skillsArray = skills.split(",");
+    }
         const userId=req.id;
-        let user=await user.findOne(userId);
+        let user=await User.findById(userId);
         if(!user){
             return res.status(400).json({
                 message: 'User not found.',
                 success: false
             });
         }
-        user.fullname=fullname;
-        user.phoneNumber=phoneNumber;
-        user.email=email;
-        user.profile.skills=skillsArray;
-        user.profile.bio=bio;
+        if(fullname) user.fullname=fullname;
+       if(phoneNumber) user.phoneNumber=phoneNumber;
+       if(email) user.email=email;
+       if (skills)user.profile.skills=skillsArray;
+        if(bio) user.profile.bio=bio;
 //resume update karne ke liye
 
         await user.save();
@@ -128,8 +127,9 @@ export const updateProfile = async(req,res)=>{
            }
            return res.status(200).json({
             message: 'Profile updated successfully.',
-            success: true,
-            user
+            user,
+            success: true
+            
            });
     }catch(error){
         console.log(error);
