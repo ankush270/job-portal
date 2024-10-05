@@ -6,7 +6,7 @@ export const register =async (req,res) =>{
         const { fullname, email,phoneNumber, password,role } = req.body;
         if(!fullname || !email || !phoneNumber || !password || !role){
             return res.status(400).json({ 
-                message: 'All fields are required.',
+                message:"All fields are required.",
                 success:false });
         };
         const user =await User.findOne({email});
@@ -23,7 +23,7 @@ export const register =async (req,res) =>{
             password: hashPassword,
             role
         })
-        return res.status(200).json({
+        return res.status(201).json({
             message: 'User registered successfully.',
             success: true
         });
