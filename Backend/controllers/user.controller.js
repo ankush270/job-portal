@@ -1,6 +1,8 @@
 import {User} from '../models/user.model.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import getDataUri from '../utilis/dataUri.js';
+import cloudinary from '../utilis/cloudinary.js';
 export const register =async (req,res) =>{
     try {
         const { fullname, email,phoneNumber, password,role } = req.body;
@@ -9,6 +11,9 @@ export const register =async (req,res) =>{
                 message:"All fields are required.",
                 success:false });
         };
+        const file=req.file;
+        const fileUri=getDataUri(file);
+        const cloudResponse = await cloudinary.uploader.upload(fileUri.content);
         const user =await User.findOne({email});
         if(user){
             return res.status(400).json({ 
@@ -21,7 +26,10 @@ export const register =async (req,res) =>{
             email,
             phoneNumber,
             password: hashPassword,
-            role
+            role,
+            profile:{
+                profilePhoto:cloudResponse.secure_url,
+            }
         })
         return res.status(201).json({
             message: 'User registered successfully.',
@@ -71,7 +79,7 @@ export const login = async (req,res) => {
         profile:user.profile
        }
         return res.status(200).cookie("token", token,{maxAge:1*24*60*60*1000,httpsOnly:true,sameSite:'strict'}).json({
-        message: 'Login successful. welcome back ${user.fullname}',
+        message: `Login successful. welcome back ${user.fullname}`,
         user,
             success: true,
        }) 
@@ -97,6 +105,10 @@ export const updateProfile = async(req,res)=>{
         const {fullname,phoneNumber,email,bio,skills}=req.body;
        
         //cloudinary
+        const fileUri=getDataUri(file);
+        const cloudResponse = await cloudinary.uploader.upload(fileUri.content);
+
+
         let skillsArray 
         if(skills){
         skillsArray = skills.split(",");
@@ -115,6 +127,10 @@ export const updateProfile = async(req,res)=>{
        if (skills)user.profile.skills=skillsArray;
         if(bio) user.profile.bio=bio;
 //resume update karne ke liye
+        if(cloudResponse){
+            user.profile.resume=cloudResponse.secure_url;
+            user.profile.resumeOriginalName=file.originalName;
+        }
 
         await user.save();
         user ={
